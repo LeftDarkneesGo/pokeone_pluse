@@ -454,6 +454,17 @@ namespace pokeone_plus
                     Bot.Game.PlayerUpdated += Map.Client_PlayerMoved;
                 }
             }
+            Dispatcher.InvokeAsync(delegate
+            {
+                if (Bot.Game != null)
+                {
+                    FileLog.OpenFile(Bot.Account.Name);
+                }
+                else
+                {
+                    FileLog.CloseFile();
+                }
+            });
         }
 
         private void Client_LootBoxMessage(string text)
