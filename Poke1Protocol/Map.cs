@@ -630,12 +630,13 @@ namespace Poke1Protocol
 
         private bool IsMovementValid(Direction direction, int collider, bool isOnGround, bool isSurfing, bool canUseCut, bool canUseSmashRock, int destx = -1, int desty = -1)
         {
+            if (collider < 0)
+                collider = Colliders[destx, desty];
+
             if (collider == 1)
             {
                 return false;
             }
-
-
 
             //check for other areas!
             var newArea = CheckArea(destx, desty);

@@ -49,7 +49,7 @@ namespace Poke1Protocol
         public int BaseLevelExperience { get; private set; }
         public int NextExperience { get; private set; }
         public ExpGroup ExpGroup { get; private set; }
-        public int RemainingExperience => CalculateLevelExp();
+        public int RemainingExperience => (NextExperience - LastExperience) - (BaseLevelExperience - LastExperience);
         public PokemonExperience(int currentLevel, int baseLevelExp, int nextExp, int lastExp, ExpGroup expGroup)
         {
             CurrentLevel = currentLevel;

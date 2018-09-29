@@ -239,10 +239,11 @@ namespace pokeone_plus
 
             AutoEvolveSwitch.IsChecked = Bot.Settings.AutoEvolve;
             OpenLootBox.IsChecked = Bot.Settings.OpenLootBoxes;
-            AutoEvolveSwitch.IsChecked = Bot.Settings.AutoEvolve;
+            AutoReconnectSwitch.IsChecked = Bot.Settings.AutoReconnect;
 
             Bot.AutoReconnector.IsEnabled = Bot.Settings.AutoReconnect;
             Bot.AutoLootBoxOpener.IsEnabled = Bot.Settings.OpenLootBoxes;
+            Bot.PokemonEvolver.IsEnabled = Bot.Settings.AutoEvolve;
 
             App.InitializeVersion();
 
@@ -829,10 +830,10 @@ namespace pokeone_plus
         {
             Title = username == null ? "" : username + " - ";
             Title += App.Name + " " + App.Version;
-            TitleBar.Title.Text = Title;
 #if DEBUG
             Title += " (debug)";
 #endif
+            TitleBar.Title.Text = Title;
         }
 
         private void LoginButton_Click(object sender, RoutedEventArgs e)
@@ -1089,7 +1090,7 @@ namespace pokeone_plus
         {
             lock (Bot)
             {
-                Bot.PokemonEvolver.IsEnabled = true;
+                Bot.PokemonEvolver.IsEnabled = false;
             }
         }
         

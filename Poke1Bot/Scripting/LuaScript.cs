@@ -1271,11 +1271,11 @@ namespace Poke1Bot.Scripting
 
         private bool MoveLinearX(params DynValue[] values)
         {
-            if (values.Length != 1 && values.Length != 4 ||
+            if (values.Length != 1 && values.Length != 3 ||
                 (values.Length == 1 && values[0].Type != DataType.Table) ||
-                (values.Length == 4
+                (values.Length == 3
                     && (values[0].Type != DataType.Number || values[1].Type != DataType.Number
-                    || values[2].Type != DataType.Number || values[3].Type != DataType.Number)))
+                    || values[2].Type != DataType.Number)))
             {
                 Fatal("error: moveLinearX: must receive either a table or three numbers.");
                 return false;
@@ -1291,11 +1291,11 @@ namespace Poke1Bot.Scripting
 
         private bool MoveLinearY(params DynValue[] values)
         {
-            if (values.Length != 1 && values.Length != 4 ||
+            if (values.Length != 1 && values.Length != 3 ||
                 (values.Length == 1 && values[0].Type != DataType.Table) ||
-                (values.Length == 4
+                (values.Length == 3
                     && (values[0].Type != DataType.Number || values[1].Type != DataType.Number
-                    || values[2].Type != DataType.Number || values[3].Type != DataType.Number)))
+                    || values[2].Type != DataType.Number)))
             {
                 Fatal("error: moveLinearY: must receive either a table or three numbers.");
                 return false;
@@ -1679,7 +1679,7 @@ namespace Poke1Bot.Scripting
             }
 
             moveName = moveName.ToUpperInvariant();
-            Pokemon pokemon = Bot.Game.Team[Bot.MoveTeacher.PokemonUid - 1];
+            Pokemon pokemon = Bot.Game.Team.Find(pok => pok.PokemonData.Pokemon.UniqueID == Bot.MoveTeacher.PokemonUniqueId);
             PokemonMove move = pokemon.Moves.FirstOrDefault(m => MovesManager.Instance.GetMoveData(m.Id)?.Name.ToUpperInvariant() == moveName);
 
             if (move != null)
@@ -1705,7 +1705,7 @@ namespace Poke1Bot.Scripting
                 movesInvariantNames.Add(value.CastToString().ToUpperInvariant());
             }
 
-            Pokemon pokemon = Bot.Game.Team[Bot.MoveTeacher.PokemonUid - 1];
+            Pokemon pokemon = Bot.Game.Team.Find(pok => pok.PokemonData.Pokemon.UniqueID == Bot.MoveTeacher.PokemonUniqueId);
             PokemonMove move = pokemon.Moves.FirstOrDefault(m => !movesInvariantNames.Contains(MovesManager.Instance.GetMoveData(m.Id)?.Name.ToUpperInvariant()));
 
             if (move != null)

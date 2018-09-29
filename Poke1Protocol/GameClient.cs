@@ -115,6 +115,7 @@ namespace Poke1Protocol
         public int PlayerX { get; private set; }
         public int PlayerY { get; private set; }
         public List<Pokemon> Team { get; private set; }
+        public List<PlayerEffect> Effects { get; private set; }
         public List<InventoryItem> Items { get; private set; }
         public Dictionary<string, ChatChannel> Channels { get; private set; }
         public List<string> Conversations { get; }
@@ -131,6 +132,7 @@ namespace Poke1Protocol
 
         private List<Direction> _movements;
         private Direction? _slidingDirection;
+        private bool _surfAfterMovement;
 
         public bool IsInBattle { get; private set; }
         public bool IsOnGround { get; private set; }
@@ -176,6 +178,7 @@ namespace Poke1Protocol
             PokedexPokemons = new List<PokedexPokemon>();
             _cachedScripts = new List<Script>();
             Scripts = new List<Script>();
+            Effects = new List<PlayerEffect>();
         }
 
         private void AddDefaultChannels()
@@ -214,6 +217,8 @@ namespace Poke1Protocol
             _connection.Close(error);
         }
 
+        public void ClearPath() => _movements.Clear();
+
         public void Update()
         {
             _mapClient.Update();
@@ -227,6 +232,7 @@ namespace Poke1Protocol
             _loadingTimeout.Update();
             _lootBoxTimeout.Update();
             _itemUseTimeout.Update();
+            _mountingTimeout.Update();
 
             UpdateMovement();
             UpdateScript();
@@ -254,6 +260,16 @@ namespace Poke1Protocol
                     }
                     _lootBoxTimeout.Cancel();
                 }
+                if (_movements.Count == 0 && _surfAfterMovement)
+                {
+                    _movementTimeout.Set(Rand.Next(750, 2000));
+                }
+            }
+
+            if (!_movementTimeout.IsActive && _movements.Count == 0 && _surfAfterMovement)
+            {
+                _surfAfterMovement = false;
+                UseSurf();
             }
         }
 
@@ -845,6 +861,9 @@ namespace Poke1Protocol
                             Console.WriteLine($"Server Version: {gr.ServerVersion}\nUsers Online: {gr.UsersOnline}");
 #endif
                             break;
+                        case PSXAPI.Response.LoginQueue queue:
+                            LogMessage?.Invoke("[Login Queue]: Average Wait-Time: " + queue.EstimatedTime.FormatTimeString());
+                            break;
                         case PSXAPI.Response.Money money:
                             Money = (int)money.Game;
                             Gold = (int)money.Gold;
@@ -913,6 +932,9 @@ namespace Poke1Protocol
                         case PSXAPI.Response.Evolve evolve:
                             OnEvolved(evolve);
                             break;
+                        case PSXAPI.Response.Effect effect:
+                            OnEffects(effect);
+                            break;
                         case PSXAPI.Response.Party party:
                             if (party.ChatID.ToString() != _partyChannel)
                             {
@@ -935,6 +957,46 @@ namespace Poke1Protocol
 
                     Console.WriteLine(proto._Name);
 #endif
+                }
+            }
+        }
+
+        private void OnEffects(Effect effect)
+        {
+            if (effect.Effects is null) return;
+
+            if (effect.Type == EffectUpdateType.All)
+            {
+                Effects.Clear();
+                foreach (var ef in effect.Effects)
+                {
+                    Effects.Add(new PlayerEffect(ef, DateTime.UtcNow));
+                }
+            }
+            else if (effect.Type == EffectUpdateType.AddOrUpdate)
+            {
+                foreach (var ef in effect.Effects)
+                {
+                    var foundEf = Effects.Find(e => e.UID == ef.UID);
+                    if (foundEf != null)
+                    {
+                        foundEf = new PlayerEffect(ef, DateTime.UtcNow);
+                    }
+                    else
+                    {
+                        Effects.Add(new PlayerEffect(ef, DateTime.UtcNow));
+                    }
+                }
+            }
+            else if (effect.Type == EffectUpdateType.Remove)
+            {
+                foreach (var ef in effect.Effects)
+                {
+                    var foundEf = Effects.Find(e => e.UID == ef.UID);
+                    if (foundEf != null)
+                    {
+                        Effects.Remove(foundEf);
+                    }
                 }
             }
         }
@@ -1073,8 +1135,12 @@ namespace Poke1Protocol
                         foreach (var id in reorder.Pokemon)
                         {
                             var poke = Team.Find(x => x.PokemonData.Pokemon.UniqueID == id);
+                            var index = Team.IndexOf(poke);
                             if (i <= Team.Count - 1)
                                 poke.UpdatePosition(i + 1);
+
+                            Team[index] = poke;
+
                             i++;
                         }
                     }
@@ -1089,7 +1155,7 @@ namespace Poke1Protocol
 
         private void SortTeam()
         {
-            Team.OrderBy(poke => poke.Uid);
+            Team = Team.OrderBy(poke => poke.Uid).ToList();
         }
 
         private void OnBattle(PSXAPI.Response.Battle battle)
@@ -1098,8 +1164,14 @@ namespace Poke1Protocol
             _slidingDirection = null;
 
             IsInBattle = !battle.Ended;
-            ActiveBattle = new Battle(PlayerName, battle, Team);
-
+            if (ActiveBattle != null && !ActiveBattle.OnlyInfo)
+            {
+                ActiveBattle.UpdateBattle(battle, Team);
+            }
+            else
+            {
+                ActiveBattle = new Battle(PlayerName, battle, Team);
+            }
             if (!ActiveBattle.OnlyInfo && IsInBattle)
                 BattleStarted?.Invoke();
 
@@ -1130,6 +1202,7 @@ namespace Poke1Protocol
             {
                 IsInBattle = false;
                 ActiveBattle = null;
+                Resync();
                 BattleEnded?.Invoke();
             }
         }
@@ -1466,6 +1539,9 @@ namespace Poke1Protocol
             if (login.Battle != null)
                 OnBattle(login.Battle);
 
+            if (login.Effects != null)
+                OnEffects(login.Effects);
+
             if (login.Time != null)
             {
                 OnUpdateTime(login.Time);
@@ -1478,6 +1554,7 @@ namespace Poke1Protocol
                     OnLootBoxRecieved(lootBox);
             if (login.NearbyUsers != null)
                 _cachedNerbyUsers = login.NearbyUsers;
+
             if (login.Party != null)
             {
                 if (login.Party.ChatID.ToString() != _partyChannel)
@@ -1494,6 +1571,8 @@ namespace Poke1Protocol
                     SendJoinChannel(_guildChannel);
                 }
             }
+
+
             AddDefaultChannels();
             if (RecievedLootBoxes?.TotalLootBoxes > 0)
             {
@@ -1791,6 +1870,21 @@ namespace Poke1Protocol
             _battleTimeout.Set();
         }
 
+        public void UseSurfAfterMovement()
+        {
+            _surfAfterMovement = true;
+        }
+
+        public void UseSurf()
+        {
+            SendProto(new PSXAPI.Request.Effect
+            {
+                Action = PSXAPI.Request.EffectAction.Use,
+                UID = GetEffectFromName("Surf").UID
+            });
+            _mountingTimeout.Set();
+        }
+
         public int DistanceTo(int cellX, int cellY)
         {
             return Math.Abs(PlayerX - cellX) + Math.Abs(PlayerY - cellY);
@@ -1848,7 +1942,7 @@ namespace Poke1Protocol
                 MapLoaded?.Invoke(AreaName);
             }
             CheckForCachedScripts();
-            if (_cachedNerbyUsers != null)
+            if (_cachedNerbyUsers != null && _cachedNerbyUsers.Users != null)
             {
                 OnUpdatePlayer(_cachedNerbyUsers);
             }
@@ -1935,7 +2029,7 @@ namespace Poke1Protocol
 
         public bool HasSurfAbility()
         {
-            return HasMove("Surf");
+            return HasMove("Surf") && HasEffectName("Surf");
         }
 
         public bool HasCutAbility()
@@ -1996,5 +2090,11 @@ namespace Poke1Protocol
             return GetItemFromName(itemName) != null;
         }
 
+        public PlayerEffect GetEffectFromName(string effectName)
+        {
+            return Effects.FirstOrDefault(e => e.Name.Equals(effectName, StringComparison.InvariantCultureIgnoreCase) && e.UID != Guid.Empty);
+        }
+
+        public bool HasEffectName(string effectName) => GetEffectFromName(effectName) != null;
     }
 }

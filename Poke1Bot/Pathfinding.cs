@@ -81,7 +81,7 @@ namespace Poke1Bot
                     if (!node.Parent.IsSurfing && node.IsSurfing)
                     {
                         directions.Clear();
-                        //_client.UseSurfAfterMovement();
+                        _client.UseSurfAfterMovement();
                     }
                     else
                     {

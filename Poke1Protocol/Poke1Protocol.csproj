@@ -65,6 +65,7 @@
     <Compile Include="AreaLink.cs" />
     <Compile Include="MovesManager.cs" />
     <Compile Include="Npc.cs" />
+    <Compile Include="PlayerEffect.cs" />
     <Compile Include="PlayerInfos.cs" />
     <Compile Include="PokedexPokemon.cs" />
     <Compile Include="Pokemon.cs" />

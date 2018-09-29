@@ -16,7 +16,7 @@ namespace Poke1Protocol
         public int CurrentHealth { get; private set; }
         public int OpponentLevel { get; private set; }
         public bool IsShiny { get; private set; }
-        public bool IsWild { get; }
+        public bool IsWild { get; private set; }
         public string OpponentGender { get; private set; }
         public string OpponentStatus { get; private set; }
         public string TrainerName { get; private set; }
@@ -43,9 +43,9 @@ namespace Poke1Protocol
 
         public PSXAPI.Response.Payload.BattleSide PlayerBattleSide { get; private set; }
 
-        public int PlayerSide { get; } = 1;
+        public int PlayerSide { get; private set; } = 1;
 
-        public PSXAPI.Response.Battle Data { get; }
+        public PSXAPI.Response.Battle Data { get; private set; }
 
         public Battle(string playerName, PSXAPI.Response.Battle data, List<Pokemon> team)
         {
@@ -67,9 +67,7 @@ namespace Poke1Protocol
             {
                 if (data.Mapping2.ToList().Any(name => name.ToLowerInvariant() == _playerName.ToLowerInvariant()))
                     PlayerSide = 2;
-            }
-
-            
+            }      
 
             if (data.Request1 != null)
             {
@@ -80,8 +78,59 @@ namespace Poke1Protocol
                 HandleBattleRequest(data.Request2, PlayerSide == 2, team);
             }
 
-            if (data.Log is null && data.Request1 is null && data.Request2 is null && Turn == 1)
-                IsFinished = true;
+            //if (data.Log is null && data.Request1 is null && data.Request2 is null && Turn == 1)
+            //    IsFinished = true;
+        }
+
+        private List<Pokemon> _tempTeam = new List<Pokemon>();
+
+        public void UpdateBattle(PSXAPI.Response.Battle data, List<Pokemon> team)
+        {
+            IsWild = data.CanCatch;
+
+            IsFinished = data.Ended;
+
+            _tempTeam.Clear();
+            team.ForEach(ps => _tempTeam.Add(ps));
+
+            if (data.Mapping1 != null && !string.IsNullOrEmpty(_playerName))
+            {
+                if (data.Mapping1.ToList().Any(name => name.ToLowerInvariant() == _playerName.ToLowerInvariant()))
+                    PlayerSide = 1;
+
+                if (team[SelectedPokemonIndex].BattleCurrentHealth <= 0)
+                {
+                    team.FindAll(p => p.BattleCurrentHealth <= 0)
+                        .ForEach(pok => _tempTeam.Remove(pok));
+
+                    SelectedPokemonIndex = team.IndexOf(_tempTeam[0]);
+                }
+            }
+
+            if (data.Mapping2 != null && !string.IsNullOrEmpty(_playerName))
+            {
+                if (data.Mapping2.ToList().Any(name => name.ToLowerInvariant() == _playerName.ToLowerInvariant()))
+                    PlayerSide = 2;
+
+                if (team[SelectedPokemonIndex].BattleCurrentHealth <= 0)
+                {
+                    team.FindAll(p => p.BattleCurrentHealth <= 0)
+                        .ForEach(pok => _tempTeam.Remove(pok));
+
+                    SelectedPokemonIndex = team.IndexOf(_tempTeam[0]);
+                }
+            }
+
+            if (data.Request1 != null)
+            {
+                HandleBattleRequest(data.Request1, PlayerSide == 1, team);
+                Data = data;
+            }
+            if (data.Request2 != null)
+            {
+                HandleBattleRequest(data.Request2, PlayerSide == 2, team);
+                Data = data;
+            }
         }
 
         private void HandleBattleRequest(PSXAPI.Response.Payload.BattleRequest request, bool isPlayerSide, List<Pokemon> team)
@@ -167,7 +216,7 @@ namespace Poke1Protocol
                     else
                         OnlyInfo = false;
 
-                    var ranAway = false;
+                    var ranAway = logs.Any(sf => sf.Contains("--run"));
 
                     switch (type)
                     {
@@ -222,17 +271,16 @@ namespace Poke1Protocol
                             {
                                 ": "
                             }, StringSplitOptions.None);
+                            team[SelectedPokemonIndex].UpdateHealth(0, team[SelectedPokemonIndex].BattleMaxHealth);
                             BattleMessage?.Invoke(!died[0].Contains("p1") ? IsWild ? $"Wild {died[1]} fainted!" : $"Opponent's {died[1]} fainted!" : $"Your {died[1]} fainted!");
                             break;
                         case "--run":
                             if (info[3] == "0")
                             {
                                 BattleMessage?.Invoke($"{info[4]} failed to run away!");
-                                ranAway = false;
                             }
                             else
                             {
-                                ranAway = true;
                                 BattleMessage?.Invoke("You got away safely!");
                             }
                             break;

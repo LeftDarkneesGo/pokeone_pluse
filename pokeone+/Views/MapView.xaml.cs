@@ -257,71 +257,69 @@ namespace pokeone_plus
 
                 new Thread( async () => 
                 {
-                    await Dispatcher.InvokeAsync(async delegate
+                    await Task.Run(async () =>
                     {
-                        await Task.Run(async () =>
+                        await Dispatcher.InvokeAsync(async delegate
                         {
-                            await Dispatcher.InvokeAsync(async delegate
+                            for (int y = 0; y < grid.Rows; ++y)
                             {
-                                for (int y = 0; y < grid.Rows; ++y)
+                                await Task.Run(async () =>
                                 {
-                                    await Task.Run(async () =>
+                                    await Dispatcher.InvokeAsync(delegate
                                     {
-                                        await Dispatcher.InvokeAsync(delegate
+                                        for (int x = 0; x < grid.Columns; ++x)
                                         {
-                                            for (int x = 0; x < grid.Columns; ++x)
+
+                                            Rectangle rect = new Rectangle();
+                                            int collider = _bot.Game.Map.GetCollider(x, y);
+                                            if (_bot.Game.Map.HasLink(x, y))
                                             {
-                                                Rectangle rect = new Rectangle();
-                                                int collider = _bot.Game.Map.GetCollider(x, y);
-                                                if (_bot.Game.Map.HasLink(x, y))
-                                                {
-                                                    rect.Fill = Brushes.Gold;
-                                                }
-                                                else if (_bot.IsAreaLink(x, y))
-                                                {
-                                                    rect.Fill = Brushes.RoyalBlue;
-                                                }
-                                                else if (_colliderColors.ContainsKey(collider))
-                                                {
-                                                    rect.Fill = _colliderColors[collider];
-                                                }
-                                                else
-                                                {
-                                                    rect.Fill = Brushes.Black;
-                                                }
-
-                                                if (collider == 4)
-                                                {
-                                                    rect.Height = _cellWidth / 4;
-                                                    rect.VerticalAlignment = VerticalAlignment.Top;
-                                                }
-
-                                                if (_bot.Game.Map.GetCellSideMoveable(collider))
-                                                {
-                                                    rect.Fill = Brushes.Wheat;
-                                                    rect.Height = _cellWidth / 4;
-                                                    rect.VerticalAlignment = VerticalAlignment.Top;
-                                                }
-
-                                                if (_bot.Game.Map.IsGrass(x, y))
-                                                    rect.Fill = Brushes.LightGreen;
-
-                                                if (_bot.Game.Map.IsCutTree(x, y))
-                                                    rect.Fill = Brushes.DarkGreen;
-                                                if (_bot.Game.Map.IsRockSmash(x, y))
-                                                    rect.Fill = Brushes.SandyBrown;
-                                                grid.Children.Add(rect);
+                                                rect.Fill = Brushes.Gold;
                                             }
-                                        });
+                                            else if (_bot.IsAreaLink(x, y))
+                                            {
+                                                rect.Fill = Brushes.RoyalBlue;
+                                            }
+                                            else if (_colliderColors.ContainsKey(collider))
+                                            {
+                                                rect.Fill = _colliderColors[collider];
+                                            }
+                                            else
+                                            {
+                                                rect.Fill = Brushes.Black;
+                                            }
 
+                                            if (collider == 4)
+                                            {
+                                                rect.Height = _cellWidth / 4;
+                                                rect.VerticalAlignment = VerticalAlignment.Top;
+                                            }
+
+                                            if (_bot.Game.Map.GetCellSideMoveable(collider))
+                                            {
+                                                rect.Fill = Brushes.Wheat;
+                                                rect.Height = _cellWidth / 4;
+                                                rect.VerticalAlignment = VerticalAlignment.Top;
+                                            }
+
+                                            if (_bot.Game.Map.IsGrass(x, y))
+                                                rect.Fill = Brushes.LightGreen;
+
+                                            if (_bot.Game.Map.IsCutTree(x, y))
+                                                rect.Fill = Brushes.DarkGreen;
+                                            if (_bot.Game.Map.IsRockSmash(x, y))
+                                                rect.Fill = Brushes.SandyBrown;
+
+                                            grid.Children.Add(rect);
+                                        }
                                     });
 
-                                }
-                            });
+                                });
+
+                            }
                         });
-                        
                     });
-                    
+
                 }).Start();
 
 
